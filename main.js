@@ -9,50 +9,59 @@ var renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-var geometry = new THREE.BoxGeometry();
-let material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+let mixer;
+var clock = new THREE.Clock();
 
-camera.position.z = 50;
+camera.position.z = 2;
+
+var mixers = [];
 
 function animate() {
-	requestAnimationFrame(animate);
-	if (mixers.length > 0) {
-		for (var i = 0; i < mixers.length; i++) {
-			mixers[i].update(clock.getDelta());
-		}
-	}
-	renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+    var delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+    renderer.render(scene, camera);
+    stats.update();
 }
 
 // load GLTF
-// const loader = new GLTFLoader();
-// loader.load(
-// 	'target.glb',
-// 	(gltf) => {
-// 		// called when the resource is loaded
+const loader = new GLTFLoader();
 
-// 		scene.add(gltf.scene);
-// 	},
-// 	(xhr) => {
-// 		// called while loading is progressing
-// 		console.log(`${(xhr.loaded / xhr.total * 100)}% loaded`);
-// 	},
-// 	(error) => {
-// 		// called when loading has errors
-// 		console.error('An error happened', error);
-// 	},
-// );
-
-// load FBX
 loader.load(
-	'samba.fbx',
-	function (object) {
-		object.mixer = new THREE.AnimationMixer(object);
-		mixer.push(object.mixer);
-		var action = object.mixer.clipAction(object.animations[0]);
-		action.play();
-		scene.add(object);
-	}
-)
+    'samba.glb',
+    (gltf) => {
+        // called when the resource is loaded
+
+        // load texture
+        var texture = new THREE.TextureLoader().load("texture.png");
+
+        // If texture is used for color information, set colorspace.
+        texture.encoding = THREE.sRGBEncoding;
+
+        // UVs use the convention that (0, 0) corresponds to the upper left corner of a texture.
+        texture.flipY = false;
+        var model = gltf.scene;
+        model.traverse((o) => {
+            if (o.isMesh) {
+                // note: for a multi-material mesh, `o.material` may be an array,
+                // in which case you'd need to set `.map` on each value.
+                o.material.map = texture;
+            }
+        });
+        mixer = new THREE.AnimationMixer(gltf.scene);
+        var action = mixer.clipAction(gltf.animations[0]);
+        action.play();
+        scene.add(model);
+
+    },
+    (xhr) => {
+        // called while loading is progressing
+        console.log(`${(xhr.loaded / xhr.total * 100)}% loaded`);
+    },
+    (error) => {
+        // called when loading has errors
+        console.error('An error happened', error);
+    },
+);
 
 animate();
